@@ -55,6 +55,7 @@ SUBSYSTEM_DEF(ticker)
 	var/roundend_check_paused = FALSE
 
 	var/round_start_time = 0
+	var/list/pre_roundstart_events
 	var/list/round_start_events
 	var/list/round_end_events
 	var/mode_result = "undefined"
@@ -302,6 +303,13 @@ SUBSYSTEM_DEF(ticker)
 
 	GLOB.manifest.build()
 
+	if(pre_roundstart_events)
+		for(var/I in pre_roundstart_events)
+			var/datum/callback/cb = I
+			cb.Invoke()
+			CHECK_TICK
+		LAZYCLEARLIST(pre_roundstart_events)
+
 	transfer_characters() //transfer keys to the new mobs
 
 	for(var/I in round_start_events)
@@ -494,6 +502,14 @@ SUBSYSTEM_DEF(ticker)
 			"}
 
 			print_command_report(suicide_command_report, "Central Command Personnel Update")
+
+// These callbacks fire after characters are created/equipped and the manifest is built,
+// but before clients are transferred to their mobs.
+/datum/controller/subsystem/ticker/proc/OnPreRoundstart(datum/callback/cb)
+	if(!HasRoundStarted())
+		LAZYADD(pre_roundstart_events, cb)
+	else
+		cb.InvokeAsync()
 
 //These callbacks will fire after roundstart key transfer
 /datum/controller/subsystem/ticker/proc/OnRoundstart(datum/callback/cb)
