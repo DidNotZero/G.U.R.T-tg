@@ -264,3 +264,5 @@ rust_g64.dll
 sync.ffs_db
 /.specify
 fumo.md
+/specs
+AGENTS.md
