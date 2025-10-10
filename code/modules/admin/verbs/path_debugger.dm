@@ -7,6 +7,7 @@ GLOBAL_DATUM_INIT(pathfind_dude, /obj/pathfind_guy, new())
 	var/datum/admins/owner
 	var/datum/action/innate/path_debug/jps/jps_debug
 	var/datum/action/innate/path_debug/sssp/sssp_debug
+	var/datum/action/innate/path_debug/dslite/dslite_debug
 
 /datum/pathfind_debug/New(datum/admins/owner)
 	src.owner = owner
@@ -15,6 +16,7 @@ GLOBAL_DATUM_INIT(pathfind_dude, /obj/pathfind_guy, new())
 /datum/pathfind_debug/Destroy(force)
 	QDEL_NULL(jps_debug)
 	QDEL_NULL(sssp_debug)
+	QDEL_NULL(dslite_debug)
 	return ..()
 
 /datum/pathfind_debug/proc/hook_client()
@@ -22,10 +24,13 @@ GLOBAL_DATUM_INIT(pathfind_dude, /obj/pathfind_guy, new())
 		return
 	QDEL_NULL(jps_debug)
 	QDEL_NULL(sssp_debug)
+	QDEL_NULL(dslite_debug)
 	jps_debug = new
 	jps_debug.Grant(owner.owner.mob)
 	sssp_debug = new()
 	sssp_debug.Grant(owner.owner.mob)
+	dslite_debug = new()
+	dslite_debug.Grant(owner.owner.mob)
 	RegisterSignal(owner.owner.mob, COMSIG_MOB_LOGOUT, PROC_REF(on_logout))
 
 /datum/pathfind_debug/proc/on_logout(mob/logging_out)
@@ -119,6 +124,100 @@ GLOBAL_DATUM_INIT(pathfind_dude, /obj/pathfind_guy, new())
 	var/image/arrow = image('icons/turf/debug.dmi', draw, "arrow", PATH_ARROW_DEBUG_LAYER, direction)
 	SET_PLANE_EXPLICIT(arrow, BALLOON_CHAT_PLANE, draw)
 	return arrow
+
+// --- D* Lite (DSLITE) visualizer ---
+
+/datum/action/innate/path_debug/dslite
+	name = "D* Lite Test"
+	button_icon = 'icons/turf/debug.dmi'
+	button_icon_state = "jps"
+
+	// Inputs
+	var/turf/source_turf
+	var/turf/target_turf
+	var/avoid_harm
+	var/avoid_lava
+	var/enforce_access
+	var/in_progress
+	/// Turfs to draw arrows between
+	var/list/turf/display_turfs
+
+/datum/action/innate/path_debug/dslite/Activate()
+	. = ..()
+	avoid_harm = (tgui_alert(owner, "Avoid harmful atmos tiles?", "DSLITE", buttons = list("Yes", "No")) == "Yes")
+	avoid_lava = (tgui_alert(owner, "Avoid lava tiles?", "DSLITE", buttons = list("Yes", "No")) == "Yes")
+	enforce_access = (tgui_alert(owner, "Enforce access restrictions?", "DSLITE", buttons = list("Yes", "No")) == "Yes")
+
+/datum/action/innate/path_debug/dslite/Deactivate()
+	source_turf = null
+	target_turf = null
+	display_turfs = list()
+	in_progress = FALSE
+	return ..()
+
+/datum/action/innate/path_debug/dslite/left_clicked(turf/clicked_on)
+	source_turf = clicked_on
+	display_turfs = list()
+
+/datum/action/innate/path_debug/dslite/right_clicked(turf/clicked_on)
+	target_turf = clicked_on
+	display_turfs = list()
+
+/datum/action/innate/path_debug/dslite/build_visuals()
+	. = ..()
+	if(source_turf)
+		var/image/start = image('icons/turf/debug.dmi', source_turf, "start", PATH_DEBUG_LAYER)
+		SET_PLANE_EXPLICIT(start, BALLOON_CHAT_PLANE, source_turf)
+		display_images += start
+	if(target_turf)
+		var/image/end = image('icons/turf/debug.dmi', target_turf, "end", PATH_DEBUG_LAYER)
+		SET_PLANE_EXPLICIT(end, BALLOON_CHAT_PLANE, target_turf)
+		display_images += end
+
+	display_images += render_path(display_turfs)
+
+/datum/action/innate/path_debug/dslite/path_ready()
+	return (source_turf && target_turf)
+
+/datum/action/innate/path_debug/dslite/run_the_path(atom/movable/middle_man)
+	set waitfor = FALSE
+	// Build options map for DSLITE
+	var/list/opts = list(
+		"avoid_harm" = avoid_harm ? TRUE : FALSE,
+		"avoid_lava" = avoid_lava ? TRUE : FALSE,
+		"enforce_access" = enforce_access ? TRUE : FALSE,
+	)
+	// Schedule incremental planning via the DSLITE SS integration to avoid freezes
+	dslite_cancel(owner)
+	if (!dslite_schedule(owner, source_turf, target_turf, opts))
+		return
+	in_progress = TRUE
+	addtimer(CALLBACK(src, PROC_REF(monitor_planner)), 1)
+
+/datum/action/innate/path_debug/dslite/proc/monitor_planner()
+	set waitfor = FALSE
+	if (!in_progress) return
+	var/list/state = islist(DSLITE_PLANNERS) ? DSLITE_PLANNERS[owner] : null
+	if (!islist(state))
+		in_progress = FALSE
+		return
+	var/list/opts = state["options"]
+	if (!islist(opts)) opts = dslite_default_options()
+	// Advance only this actor's planner a small amount to avoid freezes
+	var/done = dslite_compute_shortest_path(state, owner, opts, 20)
+	if (!done)
+		addtimer(CALLBACK(src, PROC_REF(monitor_planner)), 1)
+		return
+	// Done: extract and render
+	var/turf/start = state["start"]
+	var/turf/goal = state["goal"]
+	var/list/path = dslite_extract_path(state, start, goal, owner, opts)
+	display_turfs = list()
+	if (islist(path))
+		for (var/turf/T in path)
+			if (T) display_turfs += T
+	update_visuals()
+	in_progress = FALSE
 
 /datum/action/innate/path_debug/jps
 	name = "JPS Test"
