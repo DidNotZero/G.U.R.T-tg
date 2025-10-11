@@ -35,6 +35,10 @@
                 Enter("critical", "GLOBAL_ALERT", "")
             last_eval_ds = world.time
             return
+        // If already in Critical, do not compute local stimuli or de-escalate in Phase 5
+        if(state == "critical")
+            last_eval_ds = world.time
+            return
         // Compute local stimuli with EHP caching
         var/list/local = ComputeLocalStimuli()
         MaybeTransition(local, gstimuli)
@@ -126,7 +130,7 @@
         // Defaults per data-model; nav_* stored only for future phases
         if(t == "critical")
             return list(
-                "perception_tick_skip"=0,
+                "perception_tick_skip"=(isnum(npc_fsm_get("npc_fsm_critical_tick_skip")) ? npc_fsm_get("npc_fsm_critical_tick_skip") : 0),
                 "speech_hearing_radius"=4,
                 "nav_avoid_harm"=FALSE,
                 "nav_door_penalty_factor"=1.0,

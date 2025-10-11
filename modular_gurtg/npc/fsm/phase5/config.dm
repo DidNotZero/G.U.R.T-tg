@@ -23,6 +23,7 @@ var/global/list/npc_fsm_config = null
     c["npc_fsm_exposure_max_steps"] = 12
     c["npc_fsm_exposure_max_barriers"] = 0
     c["npc_fsm_hazard_require_would_harm"] = TRUE
+    c["npc_fsm_critical_tick_skip"] = 0
     // String area paths for documentation-friendly defaults; can be typepaths at runtime
     c["npc_fsm_contained_area_types"] = list("/area/server", "/area/datacenter")
     return c
@@ -85,6 +86,9 @@ var/global/list/npc_fsm_config = null
         if("npc_fsm_ehp_max_considered")
             if(!isnum(value)) return null
             return max(1, round(value))
+        if("npc_fsm_critical_tick_skip")
+            if(!isnum(value)) return null
+            return max(0, round(value))
         if("npc_fsm_contained_area_types")
             if(!islist(value)) return null
             // Accept strings or type paths; store as provided

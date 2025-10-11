@@ -43,6 +43,13 @@ export const NpcAIState = () => {
   const { data, act } = useBackend<Data>();
   const { alert_level, evac_enabled, rows = [] } = data;
   const [limit, setLimit] = useState(50);
+  // Auto-refresh rows every 1s
+  useEffect(() => {
+    const h = setInterval(() => {
+      act('refresh', { limit });
+    }, 1000);
+    return () => clearInterval(h);
+  }, [limit]);
 
   const setAlert = (level: string) => act('set_alert', { level });
   const setEvac = (enabled: boolean) => act('set_evac', { enabled: enabled ? 1 : 0 });
@@ -170,10 +177,3 @@ export const NpcAIState = () => {
 };
 
 export default NpcAIState;
-  // Auto-refresh rows every 1s
-  useEffect(() => {
-    const h = setInterval(() => {
-      act('refresh', { limit });
-    }, 1000);
-    return () => clearInterval(h);
-  }, [limit]);

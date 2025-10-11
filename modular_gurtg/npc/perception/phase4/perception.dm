@@ -97,6 +97,8 @@
 			if(E.kind)
 				var/list/b = kinds[E.kind]
 				if(islist(b)) b -= E
+			// Ensure datum is queued for deletion
+			qdel(E)
 
 	proc/AddSpeech(mob/speaker, text, channel)
 		var/datum/speech_entry/S = new /datum/speech_entry(speaker, text, channel)
@@ -140,8 +142,16 @@
 					to_remove += E
 		if(length(to_remove))
 			for(var/datum/perception_entry/R in to_remove)
-				if(!isnull(R.id)) index -= R.id
-				entries -= R
+				// Use central remover when possible to keep all indices in sync
+				if(!isnull(R.id))
+					RemoveById(R.id)
+				else
+					// Fallback for entries without ids
+					entries -= R
+					if(R.kind)
+						var/list/b = kinds[R.kind]
+						if(islist(b)) b -= R
+					qdel(R)
 
 // -----------------------------
 // NPC-facing API (stubs)
@@ -458,6 +468,9 @@ var/global/NPC_PERCEPTION_TIMER_ACTIVE = FALSE
         // Phase 5 FSM evaluation: run only when Sense() ran this tick (align cadence)
         if(did_sense && hascall(M, "AI_FSM_Tick"))
             M.AI_FSM_Tick()
+        // Phase 6 Utility evaluation: run immediately after FSM on Sense() ticks
+        if(did_sense && hascall(M, "AI_UTILITY_Tick"))
+            M.AI_UTILITY_Tick()
     // Re-schedule
     addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(npc_perception_timer_tick)), world.tick_lag)
 
