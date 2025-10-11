@@ -74,7 +74,7 @@ proc/dslite_heuristic(turf/a, turf/b)
 	var/dy = (a.y > b.y) ? (a.y - b.y) : (b.y - a.y)
 	var/dz = (a.z > b.z) ? (a.z - b.z) : (b.z - a.z)
 	// Moderate penalty for z difference approximating connector base cost
-return dx + dy + 10 * dz
+	return dx + dy + 10 * dz
 
 // --- Vertical connector helpers ---
 

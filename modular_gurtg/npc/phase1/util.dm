@@ -1,8 +1,16 @@
 // Phase 1 NPC Autospawn – Shared utilities
 
+// Phase 4 Perception is included via tgstation.dme
+// Include TGUI backend here to avoid missing panel if DME not updated in some forks
+#include "../perception/phase4/tgui.dm"
+
 
 // Global last-round summary for admin verb access
 GLOBAL_LIST(gurt_npc_last_spawn_summary)
+
+// Marker for NPC crew (autospawned/managed NPCs)
+/mob/living
+    var/npc_is_crew = FALSE
 
 /proc/is_interior_area(area/A)
 	if(!A)

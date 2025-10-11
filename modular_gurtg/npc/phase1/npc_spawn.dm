@@ -8,8 +8,10 @@ SUBSYSTEM_DEF(gurt_npc_phase1)
 	flags = SS_NO_FIRE
 
 /datum/controller/subsystem/gurt_npc_phase1/Initialize()
-	SSticker.OnPreRoundstart(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(npc_spawn_roundstart)))
-	return SS_INIT_SUCCESS
+    SSticker.OnPreRoundstart(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(npc_spawn_roundstart)))
+    // Ensure perception timer is running to drive Sense() cadence for NPCs
+    npc_perception_ensure_timer()
+    return SS_INIT_SUCCESS
 
 // Public entrypoint (contract): spawns 1 NPC per unfilled role
 /proc/npc_spawn_roundstart()
@@ -52,6 +54,8 @@ SUBSYSTEM_DEF(gurt_npc_phase1)
 	if(!H.real_name)
 		H.real_name = H.generate_random_mob_name()
 		H.name = H.real_name
+	// Mark as NPC crew
+	H.npc_is_crew = TRUE
 	// Ensure NPC appears on crew manifest
 	GLOB.manifest.inject(H, null, H.client)
 	// Count this NPC toward filled positions
