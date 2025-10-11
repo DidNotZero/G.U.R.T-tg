@@ -69,12 +69,12 @@ proc/dslite_edge_cost(turf/from_turf, turf/to_turf, var/list/options, mob/M)
 
 // Heuristic (Manhattan with z penalty)
 proc/dslite_heuristic(turf/a, turf/b)
-    if (!a || !b) return 0
-    var/dx = (a.x > b.x) ? (a.x - b.x) : (b.x - a.x)
-    var/dy = (a.y > b.y) ? (a.y - b.y) : (b.y - a.y)
-    var/dz = (a.z > b.z) ? (a.z - b.z) : (b.z - a.z)
-    // Moderate penalty for z difference approximating connector base cost
-    return dx + dy + 10 * dz
+	if (!a || !b) return 0
+	var/dx = (a.x > b.x) ? (a.x - b.x) : (b.x - a.x)
+	var/dy = (a.y > b.y) ? (a.y - b.y) : (b.y - a.y)
+	var/dz = (a.z > b.z) ? (a.z - b.z) : (b.z - a.z)
+	// Moderate penalty for z difference approximating connector base cost
+return dx + dy + 10 * dz
 
 // --- Vertical connector helpers ---
 
