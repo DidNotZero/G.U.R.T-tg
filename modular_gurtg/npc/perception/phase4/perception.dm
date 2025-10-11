@@ -135,6 +135,9 @@
 				var/conf = 1.0 - (age / ttl_ds)
 				if(conf < 0) conf = 0
 				E.confidence = conf
+				// Prune hazards that have decayed to zero confidence to avoid stale clutter
+				if(E.kind == "hazard" && conf <= 0)
+					to_remove += E
 		if(length(to_remove))
 			for(var/datum/perception_entry/R in to_remove)
 				if(!isnull(R.id)) index -= R.id
@@ -170,10 +173,15 @@
     EnsurePerceptionBlackboard()
 
     // Stagger cadence: only run when our offset aligns with world.time
+    var/mob_tick_skip = npc_perception_tick_skip
+    if(ai && istype(ai, /datum/ai_fsm))
+        var/list/pol = ai.PolicyFor(ai.state)
+        if(islist(pol) && isnum(pol["perception_tick_skip"]))
+            mob_tick_skip = max(0, pol["perception_tick_skip"]) // US4 override
     if(isnull(perception_tick_offset))
-        var/skip = max(0, npc_perception_tick_skip)
+        var/skip = max(0, mob_tick_skip)
         perception_tick_offset = (skip > 0) ? rand(0, skip) : 0
-    var/period = (npc_perception_tick_skip + 1)
+    var/period = (mob_tick_skip + 1)
     if(period > 1)
         if(((world.time + perception_tick_offset) % period) != 0)
             return FALSE
@@ -380,8 +388,11 @@
     var/turf/start = get_turf(M)
     if(!start) return -1
     if(start == goal) return 0
-    // Use synchronous facade request to get waypoints
-    var/list/opts = list("async"=FALSE, "max_sync_pops"=100)
+    // Guard: avoid spamming DSLITE when start or goal are not walkable for M
+    if(!dslite_is_passable(start, M) || !dslite_is_passable(goal, M))
+        return DSLITE_INF
+    // Use synchronous facade request with a small pop budget
+    var/list/opts = list("async"=FALSE, "max_sync_pops"=10)
     var/list/res = dslite_request_path(M, start, goal, opts)
     if(!islist(res)) return -1
     if(res["error"]) return -1
@@ -443,7 +454,10 @@ var/global/NPC_PERCEPTION_TIMER_ACTIVE = FALSE
     for(var/mob/living/M in world)
         if(!M.npc_is_crew) continue
         // Sense() has internal cadence/staggering and returns quickly if not scheduled this tick
-        M.Sense()
+        var/did_sense = M.Sense()
+        // Phase 5 FSM evaluation: run only when Sense() ran this tick (align cadence)
+        if(did_sense && hascall(M, "AI_FSM_Tick"))
+            M.AI_FSM_Tick()
     // Re-schedule
     addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(npc_perception_timer_tick)), world.tick_lag)
 
@@ -457,7 +471,13 @@ var/global/NPC_PERCEPTION_TIMER_ACTIVE = FALSE
     var/turf/start = get_turf(src)
     if(!start) return FALSE
     var/allow_across = (across_z == TRUE) ? TRUE : ((across_z == FALSE) ? FALSE : npc_perception_across_z_default)
-    var/r = (isnum(within) && within > 0) ? within : npc_hearing_local_radius
+    var/r_base = (isnum(within) && within > 0) ? within : npc_hearing_local_radius
+    var/r_delta = 0
+    if(ai && istype(ai, /datum/ai_fsm))
+        var/list/pol = ai.PolicyFor(ai.state)
+        if(islist(pol) && isnum(pol["speech_hearing_radius"]))
+            r_delta = pol["speech_hearing_radius"]
+    var/r = max(0, r_base + r_delta)
     var/list/qs = perception.speech_queue
     if(!islist(qs) || !length(qs)) return FALSE
     for(var/datum/speech_entry/S in qs)

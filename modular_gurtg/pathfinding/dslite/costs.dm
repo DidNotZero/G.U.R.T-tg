@@ -9,8 +9,8 @@ var/global/dslite_crowd_penalty_factor = 2
 var/global/dslite_harm_step_epsilon = 0.001
 // Base cost for taking a vertical connector (stairs/ladder)
 var/global/dslite_connector_base_cost = 2
-// Debug logging toggle (can be read by facade if desired)
-var/global/dslite_debug_logging = TRUE
+// Debug logging toggle (set to FALSE for production; enable only during diagnostics)
+var/global/dslite_debug_logging = FALSE
 // Default async behavior for requests
 var/global/dslite_async_default = TRUE
 
